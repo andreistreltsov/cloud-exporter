@@ -8,8 +8,8 @@ module Configuration =
     type T = { Source:DirPath; Destination:DirPath }
 
     let create argv = 
-        if Array.length(argv) >= 3 
-        then Some {Source = DirPath(argv.[1]); Destination = DirPath(argv.[2])}
+        if Array.length(argv) >= 2
+        then Some {Source = DirPath(argv.[0]); Destination = DirPath(argv.[1])}
         else None
 
 module IncomingFile =
@@ -20,14 +20,13 @@ module IncomingFile =
     let name (IncomingFile filePath) = 
         Path.GetFileName(filePath)
 
-    let value (IncomingFile filePath) = filePath
+    let path (IncomingFile filePath) = filePath
 
-    let copyTo (IncomingFile filePath) (DirPath directory) = 
-        File.Copy(filePath, Path.Combine(directory, filePath), true)
+    let copyTo (file:T) (DirPath directory) = File.Copy(path file, Path.Combine(directory, name file), true)
 
     let isExportFile (file:T) = 
         let fileName = name file
-        fileName.Contains(".x.") || fileName.EndsWith(".x") && (not(fileName.EndsWith(".crdownload")))&& (not(fileName.StartsWith(".")))
+        (fileName.Contains(".x.") || fileName.EndsWith(".x")) && (not(fileName.EndsWith(".crdownload")))&& (not(fileName.StartsWith(".")))
 
     let printToConsole (file:T) = printfn "%s" (name file)
 
@@ -45,7 +44,7 @@ let createFileHandler destination =
 
 let initializeWathcher (DirPath watchPath) fileHandler = 
     let fsWatcher = new FileSystemWatcher(watchPath)
-    fsWatcher.Created.Add(fun(x:FileSystemEventArgs) -> fileHandler(IncomingFile.create(x.FullPath)))
+    fsWatcher.Created.Add(fun(x:FileSystemEventArgs) -> fileHandler <| IncomingFile.create(x.FullPath))
     fsWatcher.EnableRaisingEvents <- true 
     fsWatcher
 
@@ -57,7 +56,7 @@ let main argv =
             let watcher = createFileHandler c.Destination |> initializeWathcher c.Source
             Console.ReadLine() |> ignore
 
-        | None -> Console.WriteLine("Invalid usage")
+        | None -> Console.WriteLine("Invalid usage. Pass the source directory as the first argument and destination directory as the second argument.")
     0
 
 
