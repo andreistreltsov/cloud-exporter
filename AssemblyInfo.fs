@@ -3,12 +3,12 @@
 open System.Reflection
 open System.Runtime.CompilerServices
 
-[<assembly:AssemblyTitle("cloudXporter")>]
+[<assembly:AssemblyTitle("CloudExporter")>]
 [<assembly:AssemblyDescription("")>]
 [<assembly:AssemblyConfiguration("")>]
 [<assembly:AssemblyCompany("")>]
-[<assembly:AssemblyProduct("")>]
-[<assembly:AssemblyCopyright("andrei")>]
+[<assembly:AssemblyProduct("CloudExporter")>]
+[<assembly:AssemblyCopyright("Andrei Streltsov")>]
 [<assembly:AssemblyTrademark("")>]
 [<assembly:AssemblyVersion("1.0.0.0")>]
 ()

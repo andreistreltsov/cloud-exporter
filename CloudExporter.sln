@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2012
-Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "cloudXporter", "cloudXporter.fsproj", "{3CC9381D-57C5-4E37-9A8F-260E86C5C404}"
+Project("{f2a71f9b-5d33-465a-a702-920d77279786}") = "CloudExporter", "CloudExporter.fsproj", "{3CC9381D-57C5-4E37-9A8F-260E86C5C404}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
