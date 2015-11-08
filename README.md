@@ -8,7 +8,7 @@ When a file is being exported, it's typically saved to the Downloads directory.
 Then the file needs to be manually moved to a project's working directory or synced location.
 Having to frequently update and save multiple documents related to different projects, this quickly gets old.
 
-The program monitors Downloads and automatically moves matching files to an appropriate location as defined in the configuraiton.
+The program monitors Downloads (or any other specified directory) and automatically moves matching files to an appropriate location as defined in the configuraiton.
 
 # File routing 
 
