@@ -18,71 +18,78 @@
 open System
 open System.Security.Permissions
 open System.IO
+open System.Text.RegularExpressions
 
 type DirPath = DirPath of string
 
-module Configuration = 
-    type T = { Source:DirPath; Destination:DirPath }
-
-    let create argv = 
-        if Array.length(argv) >= 2
-        then Some {Source = DirPath(argv.[0]); Destination = DirPath(argv.[1])}
-        else None
-
 module IncomingFile =
     type T = IncomingFile of string
-
     let create filePath = IncomingFile(filePath)
+    let name (IncomingFile filePath) = Path.GetFileName(filePath)
+    let copyTo (IncomingFile filePath) (DirPath directory) = 
+        File.Copy(filePath, Path.Combine(directory, Path.GetFileName(filePath)), true)
+    let remove (IncomingFile filePath) = File.Delete(filePath)
 
-    let name (IncomingFile filePath) = 
-        Path.GetFileName(filePath)
+module Route = 
+    type T = { Pattern: string; Destination: DirPath }
+    let matchesFile (route:T) file = Regex.IsMatch(IncomingFile.name file, route.Pattern)
 
-    let path (IncomingFile filePath) = filePath
+type RoutedFile = { File:IncomingFile.T; Destinations:DirPath seq }
 
-    let copyTo (file:T) (DirPath directory) = File.Copy(path file, Path.Combine(directory, name file), true)
+module Watcher = 
+    let create (DirPath watchDir) handler = 
+        let fsWatcher = new FileSystemWatcher(watchDir)
+        fsWatcher.Created.Add(fun(x:FileSystemEventArgs) -> handler <| IncomingFile.create(x.FullPath))
+        fsWatcher.EnableRaisingEvents <- true 
+        fsWatcher
 
-    let isExportFile (file:T) = 
-        let fileName = name file
-        (fileName.Contains(".x.") || fileName.EndsWith(".x")) && (not(fileName.EndsWith(".crdownload")))&& (not(fileName.StartsWith(".")))
+module Router = 
+    let routeFile routes file = 
+        let matchingDestinations = 
+            routes 
+            |> Seq.where (fun r -> Route.matchesFile r file) 
+            |> Seq.map (fun r -> r.Destination)
+            |> Seq.distinct
 
-    let printToConsole (file:T) = printfn "%s" (name file)
+        if Seq.length matchingDestinations > 0 
+            then Some({ File=file; Destinations=matchingDestinations })
+            else None
 
-    let remove (IncomingFile filePath) = 
-        File.Delete(filePath)
+let distribute routedFile = 
+    let copyFileTo = IncomingFile.copyTo routedFile.File
+    routedFile.Destinations |> Seq.iter (fun dest -> copyFileTo dest)
 
+module IncomingFileHandler =
 
-let createFileHandler destination =
-    fun (file:IncomingFile.T) ->
-        if IncomingFile.isExportFile file
-        then
-            IncomingFile.printToConsole file
-            IncomingFile.copyTo file destination
-            IncomingFile.remove file
+    let log file =  
+        file.Destinations 
+            |> Seq.map (fun (DirPath d) -> d) 
+            |> Seq.iter (fun d -> Console.WriteLine(String.Format("[{0}] -> [{1}]", IncomingFile.name file.File, d)))
 
-let initializeWathcher (DirPath watchPath) fileHandler = 
-    let fsWatcher = new FileSystemWatcher(watchPath)
-    fsWatcher.Created.Add(fun(x:FileSystemEventArgs) -> fileHandler <| IncomingFile.create(x.FullPath))
-    fsWatcher.EnableRaisingEvents <- true 
-    fsWatcher
+    let ignore file = Console.WriteLine(String.Format("[{0}] -> ignoring", IncomingFile.name file))
 
+    let remove file = IncomingFile.remove file.File
 
-type Route = { Pattern: string; Destination: DirPath }
+    let create routes = (fun(file) -> 
+        let route = Router.routeFile routes
+        match(route file) with
+        | Some file -> 
+            log file
+            distribute file
+            remove file 
+
+        | None -> 
+            ignore file 
+
+        ())
 
 module Conf =
-    type T = { Source: DirPath; Routes: Route list }
-
+    type T = { Source: DirPath; Routes: Route.T list }
     let read configFilePath = { Source=DirPath("/home/andrei/Downloads"); Routes=[
-                                                                    {Pattern="\.r\."; Destination=DirPath("/home/andrei/temp")};
-                                                                    {Pattern="\.r$"; Destination=DirPath("/home/andrei/temp")}
+                                                                    {Pattern="^project1\."; Destination=DirPath("/home/andrei/temp/project1")};
+                                                                    {Pattern="\.x\."; Destination=DirPath("/home/andrei/temp")};
+                                                                    {Pattern="\.x$"; Destination=DirPath("/home/andrei/temp")}
                                                                   ]}
-module Watcher = 
-    let create handler = 0
-
-
-module IncomingFileHander =
-    let create routes = 0
-
-
 [<EntryPoint>]
 [<PermissionSet(SecurityAction.Demand, Name="FullTrust")>]
 let main argv = 
@@ -91,8 +98,7 @@ let main argv =
     match(configFilePath argv) with
         | Some configFile ->
             let config = Conf.read configFile
-
-            //let watcher = Watcher.create config.Source <| IncomingFileHanler.create config.Routes
+            let watcher = Watcher.create config.Source <| IncomingFileHandler.create config.Routes
             Console.ReadLine() |> ignore
 
         | None -> Console.WriteLine("Invalid usage. Pass the configuration file path as the first argument.")
