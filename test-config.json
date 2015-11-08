@@ -1,0 +1,9 @@
+{
+    source: "/home/andrei/Downloads",
+
+    routes:[
+	{ pattern: "^project1\.", destination: "/home/andrei/temp/project1/diagrams" }
+	{ pattern: "\.x\.", destination: "/home/andrei/temp/alldiagrams" }
+	{ pattern: "\.x$",  destination: "/home/andrei/temp/alldiagrams" }
+    ]
+}

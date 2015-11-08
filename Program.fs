@@ -65,15 +65,37 @@ let initializeWathcher (DirPath watchPath) fileHandler =
     fsWatcher.EnableRaisingEvents <- true 
     fsWatcher
 
+
+type Route = { Pattern: string; Destination: DirPath }
+
+module Conf =
+    type T = { Source: DirPath; Routes: Route list }
+
+    let read configFilePath = { Source=DirPath("/home/andrei/Downloads"); Routes=[
+                                                                    {Pattern="\.r\."; Destination=DirPath("/home/andrei/temp")};
+                                                                    {Pattern="\.r$"; Destination=DirPath("/home/andrei/temp")}
+                                                                  ]}
+module Watcher = 
+    let create handler = 0
+
+
+module IncomingFileHander =
+    let create routes = 0
+
+
 [<EntryPoint>]
 [<PermissionSet(SecurityAction.Demand, Name="FullTrust")>]
 let main argv = 
-    match (Configuration.create argv) with 
-        | Some c -> 
-            let watcher = createFileHandler c.Destination |> initializeWathcher c.Source
+    let configFilePath argv = if Array.length(argv) = 1 then Some(Path.GetFullPath(argv.[0])) else None
+
+    match(configFilePath argv) with
+        | Some configFile ->
+            let config = Conf.read configFile
+
+            //let watcher = Watcher.create config.Source <| IncomingFileHanler.create config.Routes
             Console.ReadLine() |> ignore
 
-        | None -> Console.WriteLine("Invalid usage. Pass the source directory as the first argument and destination directory as the second argument.")
+        | None -> Console.WriteLine("Invalid usage. Pass the configuration file path as the first argument.")
     0
 
 
