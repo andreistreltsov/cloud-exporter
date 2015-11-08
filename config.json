@@ -1,0 +1,23 @@
+{
+    source: "/home/user/Downloads",
+
+    // files matching any 'ignore' pattern defined below will always be ignored 
+    ignore: [
+	// chromium temporary files
+	"\.crdownload$"
+    ],
+
+    // incoming files will be copied to every location where the filename matches the pattern
+    // WARNING: after copying the initial file gets removed from the source location
+    routes:[
+	// files that start with "project1." will be copied to the working directory of 'project1'
+	{ pattern: "^project1\.", destination: "/home/user/project1/diagrams" }
+
+	// in the patterns below ".x" is used as a flag to indicate that the file should be moved
+	// files that contain ".x.", like "foo.x.doc", will be copied to a synced location
+	{ pattern: "\.x\.", destination: "/home/user/Dropbox/all-diagrams" }
+
+	// files that end with ".x" will be copied to a synced location
+	{ pattern: "\.x$",  destination: "/home/user/temp/all-diagrams" }
+    ]
+}
