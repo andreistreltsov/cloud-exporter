@@ -31,10 +31,12 @@ module IncomingFile =
     let copyTo (IncomingFile filePath) (DirPath directory) = 
         File.Copy(filePath, Path.Combine(directory, Path.GetFileName(filePath)), true)
     let remove (IncomingFile filePath) = File.Delete(filePath)
+    let matchesPattern file pattern = Regex.IsMatch(name file, pattern)
+    let matchesAnyPattern file patterns = patterns |> Seq.where (fun p -> matchesPattern file p) |> Seq.length > 0
 
 module Route = 
     type T = { Pattern: string; Destination: DirPath }
-    let matchesFile (route:T) file = Regex.IsMatch(IncomingFile.name file, route.Pattern)
+    let matchesFile route file = IncomingFile.matchesPattern file route.Pattern
 
 type RoutedFile = { File:IncomingFile.T; Destinations:DirPath seq }
 
@@ -67,25 +69,28 @@ module IncomingFileHandler =
             |> Seq.iter (fun d -> Console.WriteLine(String.Format("[{0}] -> [{1}]", IncomingFile.name file.File, d)))
     let ignore file = Console.WriteLine(String.Format("[{0}] -> ignoring", IncomingFile.name file))
     let remove file = IncomingFile.remove file.File
-    let create routes = (fun(file) -> 
-        let route = Router.routeFile routes
-        match(route file) with
-        | Some file -> 
-            log file
-            distribute file
-            remove file 
-        | None -> 
-            Console.WriteLine("none")
-            ignore file 
-
-        ())
+    let create routes ignorePatterns = fun(file) -> 
+        if IncomingFile.matchesAnyPattern file ignorePatterns
+            then ignore file
+            else
+                let route = Router.routeFile routes
+                match(route file) with
+                | Some file -> 
+                    log file
+                    distribute file
+                    remove file 
+                | None -> 
+                    ignore file 
 
 module Configuration =
-    type T = { Source: DirPath; Routes: Route.T seq }
+    type T = { Source: DirPath; Routes: Route.T seq; IgnoreList: string seq }
     let read configFilePath = 
         let jsonConfig = JObject.Parse(File.ReadAllText(configFilePath))
         { 
             Source = DirPath((string)jsonConfig.["source"]); 
+            IgnoreList = jsonConfig.["ignore"] 
+                |> Seq.filter (fun t -> t.Type = JTokenType.String ) 
+                |> Seq.map (fun t -> (string)t);
             Routes = jsonConfig.["routes"] 
                 |> Seq.filter (fun t -> t.Type = JTokenType.Object) 
                 |> Seq.map (fun t -> { Pattern=(string)t.["pattern"]; Destination=DirPath((string)t.["destination"])})  
@@ -101,7 +106,7 @@ let main argv =
             let config = Configuration.read configFile
             let (DirPath watchPath) = config.Source
             Console.WriteLine(String.Format("watching [{0}] ...", watchPath))
-            let watcher = Watcher.create config.Source <| IncomingFileHandler.create config.Routes
+            let watcher = Watcher.create config.Source <| IncomingFileHandler.create config.Routes config.IgnoreList
             Console.ReadLine() |> ignore
         | None -> Console.WriteLine("Invalid usage. Pass the configuration file path as the first argument.")
     0
