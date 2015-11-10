@@ -19,6 +19,8 @@ open System
 open System.Security.Permissions
 open System.IO
 open System.Text.RegularExpressions
+open Newtonsoft.Json
+open Newtonsoft.Json.Linq
 
 type DirPath = DirPath of string
 
@@ -79,17 +81,19 @@ module IncomingFileHandler =
             remove file 
 
         | None -> 
+            Console.WriteLine("none")
             ignore file 
 
         ())
 
 module Conf =
-    type T = { Source: DirPath; Routes: Route.T list }
-    let read configFilePath = { Source=DirPath("/home/andrei/Downloads"); Routes=[
-                                                                    {Pattern="^project1\."; Destination=DirPath("/home/andrei/temp/project1")};
-                                                                    {Pattern="\.x\."; Destination=DirPath("/home/andrei/temp")};
-                                                                    {Pattern="\.x$"; Destination=DirPath("/home/andrei/temp")}
-                                                                  ]}
+    type T = { Source: DirPath; Routes: Route.T seq }
+    let read configFilePath = 
+        let jsonConfig = JObject.Parse(File.ReadAllText(configFilePath))
+        let parseRoute (t:JToken) : Route.T = { Pattern=(string)t.["pattern"]; Destination=DirPath((string)t.["destination"])}
+        { Source=DirPath((string)jsonConfig.["source"]); Routes=jsonConfig.["routes"] |> Seq.filter (fun t -> t.Type = JTokenType.Object) |> Seq.map parseRoute  }
+
+
 [<EntryPoint>]
 [<PermissionSet(SecurityAction.Demand, Name="FullTrust")>]
 let main argv = 
@@ -98,6 +102,10 @@ let main argv =
     match(configFilePath argv) with
         | Some configFile ->
             let config = Conf.read configFile
+
+            let (DirPath watchPath) = config.Source
+            Console.WriteLine(String.Format("watching [{0}] ...", watchPath))
+
             let watcher = Watcher.create config.Source <| IncomingFileHandler.create config.Routes
             Console.ReadLine() |> ignore
 
