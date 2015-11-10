@@ -52,7 +52,6 @@ module Router =
             |> Seq.where (fun r -> Route.matchesFile r file) 
             |> Seq.map (fun r -> r.Destination)
             |> Seq.distinct
-
         if Seq.length matchingDestinations > 0 
             then Some({ File=file; Destinations=matchingDestinations })
             else None
@@ -62,16 +61,12 @@ let distribute routedFile =
     routedFile.Destinations |> Seq.iter (fun dest -> copyFileTo dest)
 
 module IncomingFileHandler =
-
     let log file =  
         file.Destinations 
             |> Seq.map (fun (DirPath d) -> d) 
             |> Seq.iter (fun d -> Console.WriteLine(String.Format("[{0}] -> [{1}]", IncomingFile.name file.File, d)))
-
     let ignore file = Console.WriteLine(String.Format("[{0}] -> ignoring", IncomingFile.name file))
-
     let remove file = IncomingFile.remove file.File
-
     let create routes = (fun(file) -> 
         let route = Router.routeFile routes
         match(route file) with
@@ -79,36 +74,35 @@ module IncomingFileHandler =
             log file
             distribute file
             remove file 
-
         | None -> 
             Console.WriteLine("none")
             ignore file 
 
         ())
 
-module Conf =
+module Configuration =
     type T = { Source: DirPath; Routes: Route.T seq }
     let read configFilePath = 
         let jsonConfig = JObject.Parse(File.ReadAllText(configFilePath))
-        let parseRoute (t:JToken) : Route.T = { Pattern=(string)t.["pattern"]; Destination=DirPath((string)t.["destination"])}
-        { Source=DirPath((string)jsonConfig.["source"]); Routes=jsonConfig.["routes"] |> Seq.filter (fun t -> t.Type = JTokenType.Object) |> Seq.map parseRoute  }
+        { 
+            Source = DirPath((string)jsonConfig.["source"]); 
+            Routes = jsonConfig.["routes"] 
+                |> Seq.filter (fun t -> t.Type = JTokenType.Object) 
+                |> Seq.map (fun t -> { Pattern=(string)t.["pattern"]; Destination=DirPath((string)t.["destination"])})  
+        }
 
 
 [<EntryPoint>]
 [<PermissionSet(SecurityAction.Demand, Name="FullTrust")>]
 let main argv = 
     let configFilePath argv = if Array.length(argv) = 1 then Some(Path.GetFullPath(argv.[0])) else None
-
     match(configFilePath argv) with
         | Some configFile ->
-            let config = Conf.read configFile
-
+            let config = Configuration.read configFile
             let (DirPath watchPath) = config.Source
             Console.WriteLine(String.Format("watching [{0}] ...", watchPath))
-
             let watcher = Watcher.create config.Source <| IncomingFileHandler.create config.Routes
             Console.ReadLine() |> ignore
-
         | None -> Console.WriteLine("Invalid usage. Pass the configuration file path as the first argument.")
     0
 
