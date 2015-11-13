@@ -23,24 +23,24 @@ open IncomingFile
 
 
 let create routes ignorePatterns = fun(file) -> 
+
     let remove file = IncomingFile.remove file.File
 
     let ignore file = Console.WriteLine(String.Format("[{0}] -> ignoring", IncomingFile.name file))
 
-    let distribute file = file.Destinations |> Seq.iter (fun dest -> IncomingFile.copyTo file.File dest)
+    let distribute file = 
+        file.Destinations |> Seq.iter (fun dest -> IncomingFile.copyTo file.File dest)
+        file
 
     let log file =  
         file.Destinations 
             |> Seq.map (fun (DirPath d) -> d) 
             |> Seq.iter (fun d -> Console.WriteLine(String.Format("[{0}] -> [{1}]", IncomingFile.name file.File, d)))
+        file
 
     if IncomingFile.matchesAnyPattern file ignorePatterns
         then ignore file
-        else
-            match(Routing.routeFile routes file) with
-            | Some routedFile -> 
-                log routedFile
-                distribute routedFile
-                remove routedFile 
-            | None -> 
-                ignore file 
+    else 
+        match(Routing.routeFile routes file) with
+        | Some file -> file |> log |> distribute |> remove
+        | None -> ignore file 
